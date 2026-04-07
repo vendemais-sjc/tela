@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Tela de Descanso - Anúncios</title>
+    <title>Tela de Descanso • Anúncios</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
             background: #000;
             width: 100vw;
@@ -14,109 +21,106 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            /* Proporção 9:16 (1080x1920) */
             max-width: 1080px;
             max-height: 1920px;
             margin: 0 auto;
-            position: relative;
         }
-        .video-container { width: 100%; height: 100%; background: #000; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-        .message {
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .instruction {
             position: fixed;
-            bottom: 30px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(10px);
-            color: #ffcc00;
-            padding: 12px;
-            border-radius: 20px;
+            bottom: 25%;
+            left: 0;
+            right: 0;
             text-align: center;
-            font-family: monospace;
-            font-size: 14px;
-            z-index: 200;
+            color: white;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 18px;
+            font-weight: bold;
             pointer-events: none;
-            transition: opacity 0.5s;
+            z-index: 20;
+            transition: opacity 1s ease;
+            border-radius: 40px;
+            width: fit-content;
+            margin: 0 auto;
         }
-        .exit-fullscreen {
+
+        .instruction.hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .exit-hint {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 8px 16px;
-            border-radius: 40px;
-            font-size: 12px;
-            cursor: pointer;
-            z-index: 100;
-            transition: opacity 0.5s;
-            pointer-events: auto;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            color: #ccc;
+            font-size: 11px;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-family: monospace;
-        }
-        .exit-fullscreen.hide { opacity: 0; pointer-events: none; }
-        .start-btn {
-            position: fixed;
-            bottom: 40%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, #ff6600, #ff3300);
-            color: white;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 60px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 300;
-            box-shadow: 0 0 20px rgba(255,102,0,0.5);
-            animation: pulse 1.5s infinite;
+            pointer-events: none;
+            z-index: 20;
             white-space: nowrap;
         }
-        @keyframes pulse {
-            0% { transform: translateX(-50%) scale(1); opacity: 0.9; }
-            50% { transform: translateX(-50%) scale(1.05); opacity: 1; }
-            100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
-        }
-        .start-btn.hide { display: none; }
     </style>
 </head>
 <body>
     <div class="video-container">
-        <video id="adVideo" muted playsinline disablePictureInPicture></video>
+        <video id="adVideo" autoplay muted playsinline disablePictureInPicture></video>
     </div>
-    <div class="message" id="statusMsg">🔧 Toque no botão para iniciar os anúncios</div>
-    <button class="exit-fullscreen hide" id="exitFullscreenBtn">✕ Sair da tela cheia</button>
-    <button class="start-btn" id="startBtn">🎬 INICIAR ANÚNCIOS</button>
+    <div class="instruction" id="instruction">👆 Toque em qualquer lugar para ATIVAR TELA CHEIA</div>
+    <div class="exit-hint">🔒 Tela sempre ligada | Toque para sair da tela cheia</div>
 
     <script>
         // ============================================================
-        // LISTA DE VÍDEOS (SUBSTITUA PELOS SEUS)
-        // Se não tiver vídeos, o sistema usa um fallback animado (canvas)
+        // LISTA DE VÍDEOS (coloque seus arquivos .mp4 na mesma pasta)
         // ============================================================
         const videoList = [
-            "anu.mp4",          // <-- coloque seus vídeos aqui
+            "anu.mp4",
             "outro_anuncio.mp4",
-            "mais_um.mp4"
+            "mais_um_anuncio.mp4"
         ];
 
-        // Flag para saber se usamos fallback (quando não há vídeos válidos)
+        // Se não tiver vídeos, use este exemplo online (comente a linha acima e descomente abaixo)
+        // const videoList = [
+        //     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        //     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
+        // ];
+
+        let currentVideoIndex = 0;
         let usingFallback = false;
         let fallbackInterval = null;
-        let currentIndex = 0;
-        const videoElem = document.getElementById('adVideo');
-        const statusDiv = document.getElementById('statusMsg');
-        const startBtn = document.getElementById('startBtn');
-        const exitBtn = document.getElementById('exitFullscreenBtn');
+        let wakeLock = null;
+        let fullscreenActivated = false;
 
-        // ========== FALLBACK: CANVAS ANIMADO (caso não haja vídeos) ==========
+        const videoElem = document.getElementById('adVideo');
+        const instructionDiv = document.getElementById('instruction');
+
+        // ==================== FALLBACK (CANVAS ANIMADO) ====================
         function startFallback() {
+            if (usingFallback) return;
             usingFallback = true;
             videoElem.style.display = 'none';
             
-            // Cria um canvas para exibir anúncio simulado
             const canvas = document.createElement('canvas');
             canvas.width = 1080;
             canvas.height = 1920;
@@ -126,174 +130,168 @@
             document.querySelector('.video-container').appendChild(canvas);
             const ctx = canvas.getContext('2d');
             
-            const adMessages = [
-                "📺 ANÚNCIO 1 - SUPER PROMOÇÃO",
-                "🎉 OFERTA IMPERDÍVEL",
-                "🚀 APROVEITE AGORA",
-                "⭐ PRODUTO DESTAQUE",
-                "💥 ÚLTIMOS DIAS"
+            const ads = [
+                "🔥 SUPER OFERTA",
+                "📢 ANÚNCIO DESTAQUE",
+                "🎁 PROMOÇÃO ESPECIAL",
+                "⚡ APROVEITE AGORA",
+                "⭐ PRODUTO TOP"
             ];
-            let msgIndex = 0;
+            let adIndex = 0;
             
-            function drawFallbackAd() {
-                // Fundo gradiente
+            function drawFallback() {
+                // Gradiente de fundo
                 const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-                grad.addColorStop(0, '#1a1a2e');
-                grad.addColorStop(1, '#16213e');
+                grad.addColorStop(0, '#0a0a1a');
+                grad.addColorStop(1, '#1a1a2e');
                 ctx.fillStyle = grad;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // Texto do anúncio
+                // Logo / título
                 ctx.fillStyle = '#e63946';
-                ctx.font = `bold ${canvas.width * 0.08}px Arial`;
+                ctx.font = `bold ${canvas.width * 0.08}px 'Segoe UI'`;
                 ctx.textAlign = 'center';
                 ctx.fillText("TELA DE DESCANSO", canvas.width/2, canvas.height * 0.3);
                 
+                // Mensagem do anúncio
                 ctx.fillStyle = '#ffffff';
-                ctx.font = `${canvas.width * 0.05}px Arial`;
-                ctx.fillText(adMessages[msgIndex], canvas.width/2, canvas.height * 0.5);
+                ctx.font = `${canvas.width * 0.06}px 'Segoe UI'`;
+                ctx.fillText(ads[adIndex], canvas.width/2, canvas.height * 0.55);
                 
-                ctx.font = `${canvas.width * 0.04}px monospace`;
-                ctx.fillStyle = '#aaa';
-                ctx.fillText("Toque na tela para controles", canvas.width/2, canvas.height * 0.8);
+                // Indicador de rodízio
+                ctx.font = `${canvas.width * 0.035}px monospace`;
+                ctx.fillStyle = '#aaaaaa';
+                ctx.fillText(`Anúncio ${currentVideoIndex+1} • Toque para controles`, canvas.width/2, canvas.height * 0.85);
                 
-                // Animação de "carregando"
-                const time = Date.now() / 500;
-                const dots = '.'.repeat(Math.floor(time) % 4);
+                // Pontos animados
+                const dots = '.'.repeat(Math.floor(Date.now() / 800) % 4);
                 ctx.fillStyle = '#ffaa44';
-                ctx.fillText(`Anúncio ${currentIndex+1} ${dots}`, canvas.width/2, canvas.height * 0.9);
+                ctx.fillText(`exibindo ${dots}`, canvas.width/2, canvas.height * 0.92);
             }
             
-            function rotateFallbackMessage() {
-                msgIndex = (msgIndex + 1) % adMessages.length;
-                drawFallbackAd();
+            function rotateAd() {
+                adIndex = (adIndex + 1) % ads.length;
+                drawFallback();
             }
             
-            drawFallbackAd();
-            fallbackInterval = setInterval(() => {
-                if (usingFallback) {
-                    rotateFallbackMessage();
-                }
-            }, 4000);
-            
-            statusDiv.innerHTML = "⚠️ Nenhum vídeo encontrado. Usando fallback animado. Adicione vídeos .mp4 na pasta.";
+            drawFallback();
+            fallbackInterval = setInterval(rotateAd, 4500);
         }
 
-        // ========== CARREGAR PRÓXIMO VÍDEO REAL ==========
-        function loadNextVideo() {
+        // ==================== VÍDEOS REAIS ====================
+        function loadVideo() {
             if (usingFallback) return;
-            if (videoList.length === 0) {
+            if (!videoList.length) {
                 startFallback();
                 return;
             }
-            const src = videoList[currentIndex];
+            const src = videoList[currentVideoIndex];
             videoElem.src = src;
             videoElem.load();
-            videoElem.play().then(() => {
-                statusDiv.innerHTML = `▶️ Reproduzindo: ${src.split('/').pop()}`;
-                setTimeout(() => statusDiv.style.opacity = '0', 2000);
-            }).catch(err => {
-                console.warn("Erro ao tentar tocar vídeo:", err);
-                statusDiv.innerHTML = `❌ Não foi possível tocar ${src}. Pulando...`;
-                setTimeout(() => {
-                    currentIndex = (currentIndex + 1) % videoList.length;
-                    loadNextVideo();
-                }, 2000);
+            videoElem.play().catch(err => {
+                console.warn("Erro ao reproduzir vídeo:", err);
+                startFallback();
             });
         }
 
-        // Quando o vídeo termina, vai para o próximo
         videoElem.addEventListener('ended', () => {
             if (usingFallback) return;
-            currentIndex = (currentIndex + 1) % videoList.length;
-            loadNextVideo();
+            currentVideoIndex = (currentVideoIndex + 1) % videoList.length;
+            loadVideo();
         });
 
-        // Se der erro no vídeo, pula
         videoElem.addEventListener('error', () => {
             if (usingFallback) return;
-            statusDiv.style.opacity = '1';
-            statusDiv.innerHTML = "⚠️ Erro no vídeo, pulando...";
-            setTimeout(() => {
-                currentIndex = (currentIndex + 1) % videoList.length;
-                loadNextVideo();
-            }, 1500);
+            console.warn("Erro no vídeo, pulando para o próximo");
+            currentVideoIndex = (currentVideoIndex + 1) % videoList.length;
+            loadVideo();
         });
 
-        // ========== INICIAR (CHAMADO PELO BOTÃO) ==========
-        async function startAds() {
-            // Oculta botão
-            startBtn.classList.add('hide');
+        // ==================== TELA CHEIA + WAKE LOCK (no primeiro toque) ====================
+        async function activateFullscreenAndWakeLock() {
+            if (fullscreenActivated) return;
+            fullscreenActivated = true;
             
-            // Ativar tela cheia
+            // 1. Tela cheia
             const docEl = document.documentElement;
             const requestFull = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
             if (requestFull) {
                 try {
                     await requestFull.call(docEl);
-                    exitBtn.classList.remove('hide');
-                    setTimeout(() => exitBtn.classList.add('hide'), 3000);
-                } catch(e) { console.warn("fullscreen falhou", e); }
+                    instructionDiv.classList.add('hide');
+                } catch(e) {
+                    console.warn("Falha na tela cheia:", e);
+                }
             }
             
-            // Ativar Wake Lock
+            // 2. Wake Lock (tela sempre ligada)
             if ('wakeLock' in navigator) {
                 try {
-                    await navigator.wakeLock.request('screen');
-                    statusDiv.innerHTML = "✅ Tela sempre ligada ativada";
-                    setTimeout(() => statusDiv.style.opacity = '0', 2000);
-                } catch(e) {}
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    // Recupera wake lock ao voltar para a aba
+                    document.addEventListener('visibilitychange', async () => {
+                        if (document.visibilityState === 'visible' && wakeLock === null) {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                } catch(e) {
+                    console.warn("Wake Lock não suportado/permitido");
+                }
             }
             
-            // Verificar se há vídeos válidos (testa o primeiro)
-            if (videoList.length > 0) {
-                // Tenta carregar o primeiro vídeo
-                const testVideo = document.createElement('video');
-                testVideo.src = videoList[0];
-                testVideo.onloadeddata = () => {
-                    usingFallback = false;
-                    if (fallbackInterval) clearInterval(fallbackInterval);
-                    videoElem.style.display = 'block';
-                    loadNextVideo();
-                };
-                testVideo.onerror = () => {
-                    // Se o primeiro vídeo falhar, usa fallback
-                    startFallback();
-                };
-                setTimeout(() => {
-                    if (!usingFallback && videoElem.paused && !videoElem.src) {
-                        startFallback();
-                    }
-                }, 1000);
-            } else {
-                startFallback();
+            // 3. Tenta iniciar a reprodução do vídeo (caso esteja pausado)
+            if (!usingFallback && videoElem.paused) {
+                videoElem.play().catch(e => console.log("autoplay após fullscreen"));
             }
         }
 
-        // Botão principal
-        startBtn.addEventListener('click', startAds);
+        // Aguarda o primeiro toque/clique do usuário
+        document.addEventListener('touchstart', activateFullscreenAndWakeLock, { once: true });
+        document.addEventListener('click', activateFullscreenAndWakeLock, { once: true });
         
-        // Botão para sair da tela cheia
-        exitBtn.addEventListener('click', () => {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        });
+        // ==================== INICIALIZAÇÃO ====================
+        // Testa se o primeiro vídeo da lista é acessível
+        if (videoList.length > 0) {
+            const testVideo = document.createElement('video');
+            testVideo.src = videoList[0];
+            testVideo.onloadeddata = () => {
+                // Vídeo ok, usa o sistema normal
+                usingFallback = false;
+                if (fallbackInterval) clearInterval(fallbackInterval);
+                videoElem.style.display = 'block';
+                loadVideo();
+            };
+            testVideo.onerror = () => {
+                // Falha no primeiro vídeo, vai para fallback
+                startFallback();
+            };
+            setTimeout(() => {
+                if (!usingFallback && videoElem.paused && !videoElem.src) {
+                    startFallback();
+                }
+            }, 1500);
+        } else {
+            startFallback();
+        }
         
-        // Ao sair da tela cheia, mostra botão novamente
+        // Instrução inicial (já visível)
+        instructionDiv.classList.remove('hide');
+        
+        // Se o navegador permitir autoplay sem toque, já tenta (mas não esperamos)
+        if (videoList.length) {
+            videoElem.play().catch(e => {});
+        }
+        
+        // Botão de saída da tela cheia (opcional, mas útil)
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                exitBtn.classList.remove('hide');
-                setTimeout(() => exitBtn.classList.add('hide'), 3000);
-                startBtn.classList.remove('hide');
-                statusDiv.style.opacity = '1';
-                statusDiv.innerHTML = "🔁 Modo janela. Toque novamente em INICIAR para tela cheia.";
-            } else {
-                exitBtn.classList.add('hide');
+                // Sair da tela cheia: reativa a instrução para o próximo toque
+                fullscreenActivated = false;
+                instructionDiv.classList.remove('hide');
+                document.addEventListener('touchstart', activateFullscreenAndWakeLock, { once: true });
+                document.addEventListener('click', activateFullscreenAndWakeLock, { once: true });
             }
         });
-        
-        // Instrução inicial
-        statusDiv.style.opacity = '1';
     </script>
 </body>
 </html>

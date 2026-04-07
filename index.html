@@ -3,31 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Tela de Descanso - Anúncios</title>
+    <title>Tela de Descanso - Anúncios (Tela Cheia)</title>
     <style>
-        /* Reset completo e ocupação total da tela */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none;          /* evita seleção de texto */
+            user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
             background: #000;
-            overflow: hidden;
             width: 100vw;
             height: 100vh;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Define área máxima com proporção 9:16 (1080x1920) */
-            max-width: 1080px;
-            max-height: 1920px;
-            margin: 0 auto;
         }
 
+        /* Container do vídeo ocupa toda a área disponível */
         .video-container {
             width: 100%;
             height: 100%;
@@ -40,65 +36,86 @@
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain;   /* 'contain' mantém vídeo inteiro (bordas pretas) */
-            /* object-fit: cover;  /* descomente para preencher totalmente (corta levemente) */
+            object-fit: contain; /* ou 'cover' se quiser preencher sem bordas */
         }
 
-        /* Mensagem de status (discreta, some após alguns segundos) */
+        /* Botão/mensagem para ativar tela cheia (estilo grande e centralizado) */
+        .fullscreen-btn {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: white;
+            font-family: sans-serif;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: opacity 0.5s;
+        }
+
+        .fullscreen-btn button {
+            background: #00aaff;
+            border: none;
+            color: white;
+            font-size: 24px;
+            padding: 16px 32px;
+            border-radius: 60px;
+            margin-top: 20px;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(0,170,255,0.5);
+            cursor: pointer;
+        }
+
+        .fullscreen-btn p {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        /* Mensagem de status (discreta) */
         #status {
             position: fixed;
             bottom: 20px;
             left: 0;
             right: 0;
             text-align: center;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255,255,255,0.7);
             font-family: monospace;
             font-size: 12px;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0,0,0,0.6);
             padding: 6px 12px;
             border-radius: 20px;
             width: fit-content;
             margin: 0 auto;
             pointer-events: none;
             z-index: 10;
-            transition: opacity 0.8s ease;
-            backdrop-filter: blur(4px);
-        }
-
-        /* Dica temporária para tela cheia (caso não entre automaticamente) */
-        .fullscreen-hint {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 40px;
-            font-family: sans-serif;
-            font-size: 14px;
-            z-index: 20;
-            pointer-events: none;
-            white-space: nowrap;
-            backdrop-filter: blur(8px);
-            transition: opacity 1s;
-            border: 1px solid rgba(255,255,255,0.3);
+            transition: opacity 0.8s;
         }
     </style>
 </head>
 <body>
 
 <div class="video-container">
-    <video id="adVideo" autoplay muted playsinline disablePictureInPicture></video>
+    <video id="adVideo" muted playsinline disablePictureInPicture></video>
 </div>
 <div id="status">Inicializando...</div>
 
+<!-- Overlay que pede toque para ativar tela cheia -->
+<div id="fullscreenOverlay" class="fullscreen-btn">
+    <p>📱 Toque para ativar<br><strong>TELA CHEIA</strong></p>
+    <button id="enterFullscreenBtn">🔲 ATIVAR</button>
+</div>
+
 <script>
     (function() {
-        // ============================================================
-        // LISTA DE VÍDEOS (SEM ÁUDIO) - SUBSTITUA PELOS SEUS ARQUIVOS
-        // ============================================================
-        // Opção 1: Vídeos de exemplo (livres, sem áudio)
+        // ================== LISTA DE VÍDEOS ==================
+        // Substitua pelos seus vídeos (sem áudio de preferência)
         const videoList = [
           "pri.mp4",
             "teste1.mp4",
@@ -106,71 +123,92 @@
             "Pla.mp4"  
         ];
 
-        // Opção 2: Se quiser usar GIFs, descomente a linha abaixo e comente a lista acima.
-        // const videoList = [ "anuncio1.gif", "anuncio2.gif", "anuncio3.gif" ];
-
-        // Opção 3: Vídeos locais (coloque os arquivos na mesma pasta do HTML)
-        // const videoList = [ "meu_anuncio1.mp4", "meu_anuncio2.mp4" ];
-
         let currentIndex = 0;
         const videoElem = document.getElementById('adVideo');
         const statusDiv = document.getElementById('status');
+        const overlay = document.getElementById('fullscreenOverlay');
+        const enterBtn = document.getElementById('enterFullscreenBtn');
 
-        // Carrega o próximo vídeo da lista
+        // Função para carregar o vídeo atual
         function loadNextVideo() {
             if (!videoList.length) {
-                statusDiv.innerText = "Nenhum anúncio disponível";
+                statusDiv.innerText = "Nenhum anúncio";
                 return;
             }
             const src = videoList[currentIndex];
             videoElem.src = src;
             videoElem.load();
-            statusDiv.innerText = `Anúncio ${currentIndex+1} / ${videoList.length}`;
-            // Esconde a mensagem após 2 segundos
+            statusDiv.innerText = `Anúncio ${currentIndex+1}/${videoList.length}`;
             setTimeout(() => {
                 if (statusDiv.style.opacity !== '0') statusDiv.style.opacity = '0';
             }, 2000);
         }
 
-        // Quando o vídeo termina, vai para o próximo (loop infinito)
+        // Alterna para o próximo vídeo ao terminar
         videoElem.addEventListener('ended', () => {
             currentIndex = (currentIndex + 1) % videoList.length;
             loadNextVideo();
-            videoElem.play().catch(e => console.warn("Autoplay após término:", e));
+            videoElem.play().catch(e => console.warn("autoplay:", e));
         });
 
-        // Quando o vídeo está pronto para tocar, inicia
         videoElem.addEventListener('canplaythrough', () => {
-            videoElem.play().catch(e => console.log("Autoplay precisa de interação primeiro"));
+            // Só tenta tocar se já estiver em tela cheia (evita conflito)
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                videoElem.play().catch(e => console.log("play:", e));
+            }
         });
 
-        // Em caso de erro (ex: vídeo offline), pula para o próximo
         videoElem.addEventListener('error', () => {
             statusDiv.style.opacity = '1';
-            statusDiv.innerText = "Erro no anúncio, pulando...";
+            statusDiv.innerText = "Erro, pulando...";
             setTimeout(() => {
                 currentIndex = (currentIndex + 1) % videoList.length;
                 loadNextVideo();
-                videoElem.play().catch(e => {});
+                videoElem.play().catch(e=>{});
             }, 1000);
         });
 
-        // Inicia com o primeiro vídeo
-        loadNextVideo();
+        // ================== TELA CHEIA OBRIGATÓRIA COM TOQUE ==================
+        function enterFullscreen() {
+            const docEl = document.documentElement;
+            const requestMethod = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
+            if (requestMethod) {
+                requestMethod.call(docEl).then(() => {
+                    // Remove overlay após entrar em tela cheia
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                        // Inicia o vídeo automaticamente após tela cheia
+                        videoElem.play().catch(e => console.log("play after fullscreen:", e));
+                        // Ativa wake lock
+                        requestWakeLock();
+                    }, 500);
+                }).catch(err => {
+                    console.error("Falha tela cheia:", err);
+                    alert("Toque no botão novamente para ativar tela cheia.");
+                });
+            } else {
+                alert("Seu navegador não suporta tela cheia.");
+            }
+        }
 
-        // ============================================================
-        // WAKE LOCK - MANTÉM A TELA LIGADA ENQUANTO A PÁGINA ESTIVER ATIVA
-        // ============================================================
+        // Evento de toque no botão ou no overlay inteiro
+        enterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            enterFullscreen();
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) enterFullscreen();
+        });
+
+        // ================== WAKE LOCK (mantém tela ligada) ==================
         let wakeLock = null;
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    statusDiv.innerText = "✅ Tela sempre ligada ativada";
-                    setTimeout(() => {
-                        if (statusDiv.style.opacity !== '0') statusDiv.style.opacity = '0';
-                    }, 2000);
-                    // Recupera o wake lock se a página ficar visível novamente
+                    statusDiv.innerText = "✅ Tela sempre ligada";
+                    setTimeout(() => { if (statusDiv.style.opacity !== '0') statusDiv.style.opacity = '0'; }, 2000);
                     document.addEventListener('visibilitychange', async () => {
                         if (document.visibilityState === 'visible' && wakeLock === null) {
                             wakeLock = await navigator.wakeLock.request('screen');
@@ -178,99 +216,34 @@
                     });
                 } catch (err) {
                     console.error("Wake Lock error:", err);
-                    statusDiv.innerText = "⚠️ Não foi possível manter tela ligada";
+                }
+            }
+        }
+
+        // Se sair da tela cheia, tentar reativar (opcional)
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                // Mostra overlay novamente se saiu da tela cheia
+                if (overlay.style.display === 'none') {
+                    overlay.style.display = 'flex';
+                    overlay.style.opacity = '1';
                 }
             } else {
-                statusDiv.innerText = "⚠️ Wake Lock não suportado (tela pode escurecer)";
-            }
-        }
-        requestWakeLock();
-
-        // Retoma o vídeo e o wake lock quando a aba ganhar foco novamente
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                if (videoElem.paused && !videoElem.ended) {
-                    videoElem.play().catch(e => {});
-                }
-                if (wakeLock === null) requestWakeLock();
+                // Em tela cheia, garante que o vídeo toque
+                if (videoElem.paused) videoElem.play().catch(e=>{});
             }
         });
 
-        // Impede que um toque no vídeo o pause
+        // Carrega o primeiro vídeo (não toca ainda, só depois da tela cheia)
+        loadNextVideo();
+
+        // Pré-carrega o primeiro vídeo (não toca até fullscreen)
+        videoElem.load();
+
+        // Impede que o vídeo seja pausado com toque
         videoElem.addEventListener('click', (e) => {
             e.preventDefault();
-            videoElem.play().catch(e => {});
-        });
-
-        // ============================================================
-        // TELA CHEIA AUTOMÁTICA (AO CARREGAR E FALLBACK POR TOQUE)
-        // ============================================================
-        function enterFullscreen() {
-            const docEl = document.documentElement;
-            const requestMethod = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
-            if (requestMethod) {
-                requestMethod.call(docEl).catch(err => {
-                    console.warn("Falha ao entrar em tela cheia:", err);
-                });
-            }
-        }
-
-        // Tenta entrar em tela cheia assim que a página carregar (com pequeno atraso)
-        window.addEventListener('load', () => {
-            setTimeout(enterFullscreen, 500);
-        });
-
-        // Fallback: se o usuário tocar em qualquer lugar e não estiver em tela cheia, ativa
-        document.body.addEventListener('touchstart', () => {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                enterFullscreen();
-            }
-        });
-
-        // ============================================================
-        // DICA VISUAL TEMPORÁRIA PARA TELA CHEIA (CASO NÃO ENTRE AUTOMÁTICO)
-        // ============================================================
-        const hint = document.createElement('div');
-        hint.className = 'fullscreen-hint';
-        hint.innerText = '👆 Toque para tela cheia';
-        document.body.appendChild(hint);
-        setTimeout(() => {
-            hint.style.opacity = '0';
-            setTimeout(() => hint.remove(), 1000);
-        }, 4000);
-
-        // Remove a dica mais cedo se a tela cheia for ativada
-        document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
-                hint.style.opacity = '0';
-                setTimeout(() => hint.remove(), 300);
-            }
-        });
-
-        // ============================================================
-        // GARANTE QUE O AUTOPLAY FUNCIONE APÓS TELA CHEIA (Safari precisa)
-        // ============================================================
-        document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement && videoElem.paused && !videoElem.ended) {
-                videoElem.play().catch(e => console.log("retomada fullscreen"));
-            }
-        });
-
-        // Se o navegador bloquear totalmente o autoplay, mostra uma mensagem e inicia ao toque
-        let autoplayBlocked = false;
-        videoElem.addEventListener('pause', () => {
-            if (!videoElem.ended && !autoplayBlocked) {
-                autoplayBlocked = true;
-                statusDiv.style.opacity = '1';
-                statusDiv.innerText = "🔊 Toque na tela para iniciar os anúncios";
-                const startPlay = () => {
-                    videoElem.play().then(() => {
-                        statusDiv.style.opacity = '0';
-                        document.removeEventListener('touchstart', startPlay);
-                    }).catch(e => {});
-                };
-                document.addEventListener('touchstart', startPlay, { once: true });
-            }
+            videoElem.play().catch(e=>{});
         });
     })();
 </script>

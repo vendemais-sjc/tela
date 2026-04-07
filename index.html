@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Tela de Descanso - Anúncios</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* evita seleção de texto */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: black;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Força resolução 1080x1920 (proporção 9:16) */
+            max-width: 1080px;
+            max-height: 1920px;
+            margin: 0 auto;
+        }
+
+        /* Container do vídeo */
+        .video-container {
+            width: 100%;
+            height: 100%;
+            background: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* vídeo inteiro sem cortes (pode ter bordas pretas) */
+            /* Para preencher totalmente (com pequeno corte) use object-fit: cover */
+        }
+
+        /* Mensagem de status opcional (desaparece após 2s) */
+        #status {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255,255,255,0.5);
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0,0,0,0.5);
+            padding: 4px;
+            pointer-events: none;
+            z-index: 10;
+            transition: opacity 1s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="video-container">
+    <video id="adVideo" autoplay muted playsinline disablePictureInPicture>
+        <!-- Seus vídeos serão carregados via JavaScript -->
+    </video>
+</div>
+
+<div id="status">Carregando anúncios...</div>
+
+<script>
+    (function() {
+        // ============================================================
+        // LISTA DE VÍDEOS DE ANÚNCIO (sem áudio)
+        // Substitua pelos links dos seus vídeos (formato .mp4, .webm)
+        // Você pode usar vídeos locais ou URLs públicas.
+        // Exemplos temporários (silenciosos, livres de direitos)
+        // ============================================================
+        const videoList = [
+            "pri.mp4",
+            "teste1.mp4",
+            "teste2.mp4",
+            "Pla.mp4",
+        ];
+
+        // Se preferir usar GIFs, comente a linha acima e descomente abaixo:
+        // const videoList = [ "caminho/do/seu/anuncio1.gif", "caminho/do/seu/anuncio2.gif" ];
+
+        let currentIndex = 0;
+        const videoElem = document.getElementById('adVideo');
+        const statusDiv = document.getElementById('status');
+
+        // Função para carregar o próximo vídeo da lista
+        function loadNextVideo() {
+            if (videoList.length === 0) {
+                statusDiv.innerText = "Nenhum vídeo na lista!";
+                return;
+            }
+            const src = videoList[currentIndex];
+            videoElem.src = src;
+            videoElem.load();
+            statusDiv.innerText = `Anúncio ${currentIndex+1}/${videoList.length}`;
+            // Faz fade out da mensagem após 2 segundos
+            setTimeout(() => {
+                if (statusDiv.style.opacity !== '0') {
+                    statusDiv.style.opacity = '0';
+                }
+            }, 2000);
+        }
+
+        // Quando o vídeo terminar, vai para o próximo (loop infinito)
+        videoElem.addEventListener('ended', () => {
+            currentIndex = (currentIndex + 1) % videoList.length;
+            loadNextVideo();
+            // Tenta tocar automaticamente (navegadores podem bloquear, mas com muted+playsinline funciona)
+            videoElem.play().catch(e => console.warn("Autoplay bloqueado? ", e));
+        });
+
+        // Garante que o vídeo toque quando estiver pronto
+        videoElem.addEventListener('canplaythrough', () => {
+            videoElem.play().catch(e => console.log("Usuário precisa interagir?"));
+        });
+
+        // Se houver erro no carregamento do vídeo (ex: link offline)
+        videoElem.addEventListener('error', (e) => {
+            console.error("Erro no vídeo:", videoElem.error);
+            statusDiv.style.opacity = '1';
+            statusDiv.innerText = "Erro no anúncio, pulando...";
+            setTimeout(() => {
+                currentIndex = (currentIndex + 1) % videoList.length;
+                loadNextVideo();
+                videoElem.play().catch(e=>{});
+            }, 1000);
+        });
+
+        // Inicia com o primeiro vídeo
+        loadNextVideo();
+
+        // ============================================================
+        // IMPEDIR QUE A TELA DO CELULAR DESLIGUE (Wake Lock)
+        // ============================================================
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    statusDiv.innerText = "✔ Tela sempre ligada ativada";
+                    setTimeout(() => {
+                        if (statusDiv.style.opacity !== '0') statusDiv.style.opacity = '0';
+                    }, 2000);
+                    // Recupera o wake lock se a página ficar visível novamente
+                    document.addEventListener('visibilitychange', async () => {
+                        if (document.visibilityState === 'visible' && wakeLock === null) {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                } else {
+                    statusDiv.innerText = "⚠ Wake Lock não suportado (tela pode escurecer)";
+                }
+            } catch (err) {
+                console.error("Erro ao ativar wake lock:", err);
+                statusDiv.innerText = "❌ Não foi possível manter tela ligada";
+            }
+        }
+
+        requestWakeLock();
+
+        // ============================================================
+        // TOCAR AUTOMATICAMENTE MESMO APÓS SAIR E VOLTAR PARA A ABA
+        // ============================================================
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // Se o vídeo estiver pausado (ex: por ter ido para outra aba), retoma
+                if (videoElem.paused) {
+                    videoElem.play().catch(e => console.log("retomada falhou"));
+                }
+                // Tenta renovar wake lock
+                if (wakeLock === null) requestWakeLock();
+            }
+        });
+
+        // Previne que o toque na tela pause o vídeo (opcional)
+        videoElem.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Não pausa – mantém rodando
+            videoElem.play().catch(e=>{});
+        });
+
+        // Exibe um pequeno alerta se o autoplay for bloqueado (o usuário precisa tocar uma vez)
+        videoElem.addEventListener('play', () => {
+            statusDiv.style.opacity = '0';
+        });
+
+        // Fallback: se o navegador bloquear o autoplay, mostra uma mensagem e toca após toque
+        videoElem.addEventListener('pause', () => {
+            if (!videoElem.ended) {
+                statusDiv.style.opacity = '1';
+                statusDiv.innerText = "Toque na tela para iniciar os anúncios";
+                const startPlay = () => {
+                    videoElem.play().then(() => {
+                        statusDiv.style.opacity = '0';
+                        document.removeEventListener('touchstart', startPlay);
+                    }).catch(e=>{});
+                };
+                document.addEventListener('touchstart', startPlay, { once: true });
+            }
+        });
+    })();
+</script>
+</body>
+</html>

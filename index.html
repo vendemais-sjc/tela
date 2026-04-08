@@ -13,8 +13,8 @@
             -webkit-tap-highlight-color: transparent;
         }
         body {
-            background: #000;
-            width: 100vw;
+            background: black;
+            width: 100%;
             height: 100vh;
             overflow: hidden;
             position: fixed;
@@ -25,48 +25,48 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: black;
         }
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain;  /* ou 'cover' se quiser preencher */
+            object-fit: contain;
         }
-        /* Botão igual ao do menu do Cazé Playlist */
+        /* Botão igual ao do menu do Cazé Playlist (mas estilizado como botão) */
         .fullscreen-btn {
             position: fixed;
-            bottom: 30px;
+            bottom: 20px;
             right: 20px;
             background: rgba(0,0,0,0.6);
             backdrop-filter: blur(8px);
             color: white;
-            border: 1px solid rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
             width: 50px;
             height: 50px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
+            font-size: 24px;
             cursor: pointer;
-            z-index: 31;
+            z-index: 100;
             transition: 0.2s;
         }
         .fullscreen-btn:active {
             transform: scale(0.9);
             background: #e63946;
+            color: black;
         }
-        /* Status opcional (pequeno) */
         .status {
             position: fixed;
             bottom: 20px;
             left: 20px;
             background: rgba(0,0,0,0.5);
             backdrop-filter: blur(4px);
-            padding: 4px 12px;
+            padding: 6px 12px;
             border-radius: 20px;
             color: #ccc;
-            font-size: 11px;
+            font-size: 12px;
             font-family: monospace;
             pointer-events: none;
             z-index: 10;
@@ -78,68 +78,70 @@
         <video id="adVideo" autoplay muted playsinline disablePictureInPicture></video>
     </div>
     <div class="fullscreen-btn" id="fullscreenBtn">
-        <i class="fas fa-expand"></i>
+        🔲
     </div>
     <div class="status" id="statusMsg">📺 Toque no botão para tela cheia</div>
 
-    <!-- Font Awesome (mesmo do Cazé Playlist) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <script>
-        // ==================== LISTA DE VÍDEOS ====================
-        // Coloque seus vídeos na mesma pasta (ex: "anu.mp4", "outro.mp4")
+        // ========== LISTA DE VÍDEOS (SUBSTITUA PELOS SEUS) ==========
         const videos = [
-            "teste1",
-            "Pla.mp4",
-            "teste2.mp4",
-            
+            "tete1.mp4",
+            "tete1.mp4",
+            "Pla.mp4"
         ];
 
-        // Se quiser testar com vídeo online (funciona em qualquer lugar), descomente a linha abaixo:
+        // PARA TESTAR COM VÍDEO ONLINE (FUNCIONA EM QUALQUER LUGAR) - descomente a linha abaixo e comente a de cima
         // const videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"];
 
-        let currentIndex = 0;
+        let current = 0;
         let wakeLock = null;
         const video = document.getElementById('adVideo');
         const btn = document.getElementById('fullscreenBtn');
         const statusDiv = document.getElementById('statusMsg');
 
-        // ========== TOCAR VÍDEO ATUAL ==========
-        function playCurrentVideo() {
+        // Função para tocar o vídeo atual
+        function playVideo() {
             if (!videos.length) return;
-            video.src = videos[currentIndex];
+            video.src = videos[current];
             video.load();
             video.play().then(() => {
-                statusDiv.innerText = `▶️ Anúncio ${currentIndex+1}/${videos.length}`;
-            }).catch(err => {
-                statusDiv.innerText = `⚠️ Erro, pulando...`;
+                statusDiv.innerText = `▶️ Anúncio ${current+1}/${videos.length}`;
+            }).catch(e => {
+                statusDiv.innerText = `⚠️ Erro no vídeo ${current+1}, pulando...`;
                 setTimeout(() => {
-                    currentIndex = (currentIndex + 1) % videos.length;
-                    playCurrentVideo();
+                    current = (current + 1) % videos.length;
+                    playVideo();
                 }, 2000);
             });
         }
 
+        // Avança para o próximo vídeo ao terminar
         video.addEventListener('ended', () => {
-            currentIndex = (currentIndex + 1) % videos.length;
-            playCurrentVideo();
+            current = (current + 1) % videos.length;
+            playVideo();
         });
 
+        // Se houver erro de carregamento (arquivo não encontrado ou codec inválido)
         video.addEventListener('error', () => {
-            statusDiv.innerText = "❌ Erro no vídeo, pulando...";
+            statusDiv.innerText = "❌ Vídeo com erro, pulando...";
             setTimeout(() => {
-                currentIndex = (currentIndex + 1) % videos.length;
-                playCurrentVideo();
+                current = (current + 1) % videos.length;
+                playVideo();
             }, 1500);
         });
 
-        // ========== TELA CHEIA (MESMO DO CAZÉ PLAYLIST) ==========
+        // ========== TELA CHEIA (EXATAMENTE COMO NO CAZÉ PLAYLIST) ==========
         btn.addEventListener('click', () => {
-            // Entrar em tela cheia (igual ao seu projeto)
-            document.documentElement.requestFullscreen();
-            // Esconder botão após ativar
+            // Tenta entrar em tela cheia usando o método padrão
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen();
+            } else if (docEl.webkitRequestFullscreen) { // Safari
+                docEl.webkitRequestFullscreen();
+            }
+            // Esconde o botão
             btn.style.display = 'none';
-            // Ativar Wake Lock (tela sempre ligada)
+            // Ativa wake lock
             if ('wakeLock' in navigator) {
                 navigator.wakeLock.request('screen').then(lock => {
                     wakeLock = lock;
@@ -148,10 +150,10 @@
                             navigator.wakeLock.request('screen').then(l => wakeLock = l);
                         }
                     });
-                }).catch(e => console.log);
+                }).catch(e => console.log("Wake Lock não suportado"));
             }
-            // Iniciar vídeo (se não estiver tocando)
-            if (video.paused) playCurrentVideo();
+            // Se o vídeo ainda não começou, inicia
+            if (video.paused) playVideo();
             statusDiv.innerText = "✅ Tela cheia ativada";
         });
 
@@ -163,7 +165,7 @@
             }
         });
 
-        // Pré-carrega o primeiro vídeo (não toca até o botão)
+        // Pré-carrega o primeiro vídeo (mas não toca até o botão)
         if (videos.length) {
             video.src = videos[0];
             video.load();

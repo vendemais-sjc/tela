@@ -13,26 +13,26 @@
             -webkit-tap-highlight-color: transparent;
         }
         body {
-            background: black;
-            width: 100%;
+            background: #000;
+            width: 100vw;
             height: 100vh;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: system-ui, sans-serif;
+            position: fixed;
         }
         .video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background: black;
+            background: #000;
         }
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: contain;  /* ou 'cover' se quiser preencher */
         }
-        /* Botão flutuante igual ao do seu menu */
+        /* Botão igual ao do menu do Cazé Playlist */
         .fullscreen-btn {
             position: fixed;
             bottom: 30px;
@@ -41,21 +41,22 @@
             backdrop-filter: blur(8px);
             color: white;
             border: 1px solid rgba(255,255,255,0.3);
-            padding: 12px 20px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 100;
-            transition: 0.2s;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+            z-index: 31;
+            transition: 0.2s;
         }
         .fullscreen-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.9);
             background: #e63946;
         }
+        /* Status opcional (pequeno) */
         .status {
             position: fixed;
             bottom: 20px;
@@ -65,7 +66,7 @@
             padding: 4px 12px;
             border-radius: 20px;
             color: #ccc;
-            font-size: 12px;
+            font-size: 11px;
             font-family: monospace;
             pointer-events: none;
             z-index: 10;
@@ -73,97 +74,100 @@
     </style>
 </head>
 <body>
-<div class="video-container">
-    <video id="adVideo" autoplay muted playsinline disablePictureInPicture></video>
-</div>
-<button class="fullscreen-btn" id="fullscreenBtn">
-    <i class="fas fa-expand"></i> TELA CHEIA
-</button>
-<div class="status" id="statusMsg">📺 Toque no botão para tela cheia</div>
+    <div class="video-container">
+        <video id="adVideo" autoplay muted playsinline disablePictureInPicture></video>
+    </div>
+    <div class="fullscreen-btn" id="fullscreenBtn">
+        <i class="fas fa-expand"></i>
+    </div>
+    <div class="status" id="statusMsg">📺 Toque no botão para tela cheia</div>
 
-<script>
-    // ==================== VÍDEOS (SUBSTITUA) ====================
-    const videos = [
-        "pri.mp4",
-        "teste3.mp4"
-    ];
+    <!-- Font Awesome (mesmo do Cazé Playlist) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    // Teste com vídeos online (funciona em qualquer lugar)
-    // const videos = [
-    //     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-    // ];
+    <script>
+        // ==================== LISTA DE VÍDEOS ====================
+        // Coloque seus vídeos na mesma pasta (ex: "anu.mp4", "outro.mp4")
+        const videos = [
+            "teste1",
+            "Pla.mp4",
+            "teste2.mp4",
+            
+        ];
 
-    let current = 0;
-    let wakeLock = null;
-    const video = document.getElementById('adVideo');
-    const btn = document.getElementById('fullscreenBtn');
-    const statusDiv = document.getElementById('statusMsg');
+        // Se quiser testar com vídeo online (funciona em qualquer lugar), descomente a linha abaixo:
+        // const videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"];
 
-    // Tocar vídeo atual
-    function playVideo() {
-        if (!videos.length) return;
-        video.src = videos[current];
-        video.load();
-        video.play().then(() => {
-            statusDiv.innerText = `▶️ Anúncio ${current+1}/${videos.length}`;
-        }).catch(e => {
-            statusDiv.innerText = `⚠️ Erro no vídeo ${current+1}, pulando...`;
-            setTimeout(() => {
-                current = (current + 1) % videos.length;
-                playVideo();
-            }, 2000);
+        let currentIndex = 0;
+        let wakeLock = null;
+        const video = document.getElementById('adVideo');
+        const btn = document.getElementById('fullscreenBtn');
+        const statusDiv = document.getElementById('statusMsg');
+
+        // ========== TOCAR VÍDEO ATUAL ==========
+        function playCurrentVideo() {
+            if (!videos.length) return;
+            video.src = videos[currentIndex];
+            video.load();
+            video.play().then(() => {
+                statusDiv.innerText = `▶️ Anúncio ${currentIndex+1}/${videos.length}`;
+            }).catch(err => {
+                statusDiv.innerText = `⚠️ Erro, pulando...`;
+                setTimeout(() => {
+                    currentIndex = (currentIndex + 1) % videos.length;
+                    playCurrentVideo();
+                }, 2000);
+            });
+        }
+
+        video.addEventListener('ended', () => {
+            currentIndex = (currentIndex + 1) % videos.length;
+            playCurrentVideo();
         });
-    }
 
-    video.addEventListener('ended', () => {
-        current = (current + 1) % videos.length;
-        playVideo();
-    });
-    video.addEventListener('error', () => {
-        statusDiv.innerText = "❌ Erro, pulando...";
-        setTimeout(() => {
-            current = (current + 1) % videos.length;
-            playVideo();
-        }, 1500);
-    });
+        video.addEventListener('error', () => {
+            statusDiv.innerText = "❌ Erro no vídeo, pulando...";
+            setTimeout(() => {
+                currentIndex = (currentIndex + 1) % videos.length;
+                playCurrentVideo();
+            }, 1500);
+        });
 
-    // ==================== TELA CHEIA (MESMO DO SEU PROJETO) ====================
-    btn.addEventListener('click', () => {
-        // Entrar em tela cheia exatamente como no Cazé Playlist
-        document.documentElement.requestFullscreen();
-        // Esconder botão após ativar (opcional)
-        btn.style.display = 'none';
-        // Ativar wake lock (tela sempre ligada)
-        if ('wakeLock' in navigator) {
-            navigator.wakeLock.request('screen').then(lock => {
-                wakeLock = lock;
-                // Recuperar wake lock se a aba ficar visível
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible' && wakeLock === null) {
-                        navigator.wakeLock.request('screen').then(l => wakeLock = l);
-                    }
-                });
-            }).catch(e => console.log);
+        // ========== TELA CHEIA (MESMO DO CAZÉ PLAYLIST) ==========
+        btn.addEventListener('click', () => {
+            // Entrar em tela cheia (igual ao seu projeto)
+            document.documentElement.requestFullscreen();
+            // Esconder botão após ativar
+            btn.style.display = 'none';
+            // Ativar Wake Lock (tela sempre ligada)
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').then(lock => {
+                    wakeLock = lock;
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'visible' && wakeLock === null) {
+                            navigator.wakeLock.request('screen').then(l => wakeLock = l);
+                        }
+                    });
+                }).catch(e => console.log);
+            }
+            // Iniciar vídeo (se não estiver tocando)
+            if (video.paused) playCurrentVideo();
+            statusDiv.innerText = "✅ Tela cheia ativada";
+        });
+
+        // Se sair da tela cheia, mostra o botão novamente
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                btn.style.display = 'flex';
+                statusDiv.innerText = "🔓 Toque no botão para reativar tela cheia";
+            }
+        });
+
+        // Pré-carrega o primeiro vídeo (não toca até o botão)
+        if (videos.length) {
+            video.src = videos[0];
+            video.load();
         }
-        // Iniciar vídeo (se ainda não estiver tocando)
-        if (video.paused) playVideo();
-        statusDiv.innerText = "✅ Tela cheia ativada";
-    });
-
-    // Para sair da tela cheia (opcional, mas útil)
-    document.addEventListener('fullscreenchange', () => {
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            // Saiu da tela cheia, mostra botão novamente
-            btn.style.display = 'flex';
-            statusDiv.innerText = "🔓 Tela cheia desativada. Toque no botão para reativar.";
-        }
-    });
-
-    // Carrega o primeiro vídeo (mas não toca até o botão)
-    if (videos.length) {
-        video.src = videos[0];
-        video.load();
-    }
-</script>
+    </script>
 </body>
 </html>

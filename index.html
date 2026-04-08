@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Tela de Descanso • Anúncios</title>
+    <title>Tela de Descanso - Anúncios</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,6 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-
         body {
             background: black;
             width: 100%;
@@ -21,187 +20,142 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* proporção 9:16 (1080x1920) */
-            max-width: 1080px;
-            max-height: 1920px;
-            margin: 0 auto;
-            position: relative;
-            font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
         }
-
-        .video-container {
+        .container {
             width: 100%;
             height: 100%;
-            background: #000;
+            position: relative;
+            background: black;
         }
-
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain;  /* ou 'cover' se quiser preencher sem bordas */
+            object-fit: contain;
         }
-
-        /* Botão de ativação (tela cheia) */
-        .fullscreen-activator {
+        /* Botão de ativação (apenas um botão simples) */
+        .fullscreen-button {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.92);
-            backdrop-filter: blur(12px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            cursor: pointer;
-            transition: opacity 0.4s ease;
-        }
-
-        .fullscreen-activator button {
-            background: linear-gradient(135deg, #ff6600, #ff3300);
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff5500;
+            color: white;
             border: none;
-            color: white;
-            font-size: 28px;
+            padding: 16px 32px;
+            font-size: 24px;
             font-weight: bold;
-            padding: 18px 36px;
             border-radius: 60px;
-            box-shadow: 0 0 25px rgba(255,102,0,0.7);
+            box-shadow: 0 0 20px rgba(255,85,0,0.8);
             cursor: pointer;
-            animation: pulse 1.5s infinite;
+            z-index: 1000;
+            animation: pulse 1.2s infinite;
+            font-family: inherit;
         }
-
-        .fullscreen-activator p {
-            margin-top: 30px;
-            color: white;
-            font-size: 17px;
-            text-align: center;
-            padding: 0 20px;
-            font-weight: 500;
-        }
-
         @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.9; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(1); opacity: 0.9; }
+            0% { transform: translateX(-50%) scale(1); opacity: 0.9; }
+            50% { transform: translateX(-50%) scale(1.05); opacity: 1; }
+            100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
         }
-
-        .status-message {
+        .status {
             position: fixed;
-            bottom: 16px;
+            bottom: 20px;
             left: 0;
             right: 0;
             text-align: center;
-            color: rgba(255,255,255,0.65);
+            color: #ccc;
+            background: rgba(0,0,0,0.5);
             font-size: 12px;
-            background: rgba(0,0,0,0.55);
             padding: 6px;
-            z-index: 10;
-            pointer-events: none;
             font-family: monospace;
-            backdrop-filter: blur(4px);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
-
-<div class="video-container">
-    <video id="adsVideo" muted playsinline disablePictureInPicture></video>
+<div class="container">
+    <video id="adVideo" autoplay muted playsinline disablePictureInPicture></video>
 </div>
-
-<div class="fullscreen-activator" id="fullscreenActivator">
-    <button id="fullscreenBtn">🔲 TELA CHEIA</button>
-    <p>👆 Toque no botão para ativar e iniciar os anúncios</p>
-</div>
-
-<div class="status-message" id="statusMsg">⚡ Aguardando ativação</div>
+<button class="fullscreen-button" id="fullscreenBtn">🔲 TELA CHEIA</button>
+<div class="status" id="statusMsg">Toque no botão para ativar tela cheia e anúncios</div>
 
 <script>
-    // ============================================================
-    // LISTA DE VÍDEOS (SUBSTITUA PELOS SEUS ARQUIVOS .mp4)
-    // Coloque os vídeos na mesma pasta que este arquivo HTML
-    // ============================================================
-    const videoFiles = [
-        "teste1.mp4",
+    // ==================== LISTA DE VÍDEOS ====================
+    // Coloque seus vídeos .mp4 na mesma pasta e liste aqui
+    const videoList = [
         "Pla.mp4",
-        "teste2.mp4"
-         "pri.mp4"
+        "teste1.mp4",
+        "teste3.mp4"
     ];
 
-    // Se quiser testar com vídeos online (formato compatível), descomente a linha abaixo
-    // e comente a lista acima.
+    // Para teste com vídeos online (funciona em qualquer celular), descomente abaixo e comente acima
     /*
-    const videoFiles = [
+    const videoList = [
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFunflies.mp4"
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
     ];
     */
 
-    let currentVideoIndex = 0;
-    let wakeLockObj = null;
-    let fullscreenActive = false;
-    let isVideoError = false;
-
-    const videoElement = document.getElementById('adsVideo');
-    const activatorDiv = document.getElementById('fullscreenActivator');
+    let currentVideo = 0;
+    let wakeLock = null;
+    let fullscreenActivated = false;
+    const video = document.getElementById('adVideo');
+    const btn = document.getElementById('fullscreenBtn');
     const statusDiv = document.getElementById('statusMsg');
 
-    // ========== FUNÇÃO PARA TOCAR O PRÓXIMO VÍDEO ==========
-    function playCurrentVideo() {
-        if (!videoFiles.length) {
-            statusDiv.innerText = "⚠️ Nenhum vídeo configurado. Adicione arquivos .mp4";
+    // Função para tocar o vídeo atual
+    function playVideo() {
+        if (!videoList.length) {
+            statusDiv.innerText = "⚠️ Nenhum vídeo na lista!";
             return;
         }
-        const src = videoFiles[currentVideoIndex];
-        videoElement.src = src;
-        videoElement.load();
-        videoElement.play().then(() => {
-            statusDiv.innerText = `▶️ Anúncio ${currentVideoIndex+1}/${videoFiles.length}`;
-            isVideoError = false;
-        }).catch(err => {
-            console.warn("Erro ao reproduzir vídeo:", err);
-            statusDiv.innerText = `⚠️ Falha no vídeo ${currentVideoIndex+1}. Pulando...`;
-            isVideoError = true;
+        const src = videoList[currentVideo];
+        video.src = src;
+        video.load();
+        video.play().then(() => {
+            statusDiv.innerText = `▶️ Anúncio ${currentVideo+1}/${videoList.length}`;
+        }).catch(e => {
+            statusDiv.innerText = `❌ Erro no vídeo ${currentVideo+1}, pulando...`;
             setTimeout(() => {
-                currentVideoIndex = (currentVideoIndex + 1) % videoFiles.length;
-                playCurrentVideo();
+                currentVideo = (currentVideo + 1) % videoList.length;
+                playVideo();
             }, 2000);
         });
     }
 
-    // Quando o vídeo termina naturalmente, vai para o próximo
-    videoElement.addEventListener('ended', () => {
-        if (!fullscreenActive) return; // só avança se já estiver em modo ativo
-        currentVideoIndex = (currentVideoIndex + 1) % videoFiles.length;
-        playCurrentVideo();
+    // Avança para o próximo vídeo quando terminar
+    video.addEventListener('ended', () => {
+        currentVideo = (currentVideo + 1) % videoList.length;
+        playVideo();
     });
 
-    // Se houver erro de carregamento (arquivo não encontrado ou codec inválido)
-    videoElement.addEventListener('error', () => {
-        if (!fullscreenActive) return;
-        statusDiv.innerText = "❌ Erro no vídeo, pulando...";
+    // Em caso de erro de carregamento
+    video.addEventListener('error', () => {
+        statusDiv.innerText = "⚠️ Vídeo com erro, pulando...";
         setTimeout(() => {
-            currentVideoIndex = (currentVideoIndex + 1) % videoFiles.length;
-            playCurrentVideo();
+            currentVideo = (currentVideo + 1) % videoList.length;
+            playVideo();
         }, 1500);
     });
 
-    // ========== ATIVAR TELA CHEIA + WAKE LOCK + INICIAR VÍDEOS ==========
-    async function activateFullscreenAndStart() {
-        if (fullscreenActive) return;
-
-        // 1. Solicitar tela cheia
-        const docEl = document.documentElement;
-        const requestFull = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+    // ========== ATIVAÇÃO DA TELA CHEIA E INÍCIO ==========
+    async function enableFullscreenAndStart() {
+        if (fullscreenActivated) return;
+        
+        // 1. Solicitar tela cheia (em vários formatos)
+        const doc = document.documentElement;
+        const requestFull = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.msRequestFullscreen;
         if (requestFull) {
             try {
-                await requestFull.call(docEl);
-                fullscreenActive = true;
-                statusDiv.innerText = "✅ Tela cheia ativada! Carregando anúncios...";
+                await requestFull.call(doc);
+                fullscreenActivated = true;
+                statusDiv.innerText = "✅ Tela cheia ativada! Iniciando anúncios...";
             } catch (err) {
-                statusDiv.innerText = "❌ Falha ao ativar tela cheia. Toque novamente.";
+                statusDiv.innerText = "❌ Falha ao ativar tela cheia. Tente novamente.";
                 console.error(err);
                 return;
             }
@@ -210,43 +164,30 @@
             return;
         }
 
-        // 2. Ativar Wake Lock (mantém tela ligada)
+        // 2. Ativar Wake Lock (tela sempre ligada)
         if ('wakeLock' in navigator) {
             try {
-                wakeLockObj = await navigator.wakeLock.request('screen');
-                // Recupera wake lock se a página ficar visível novamente
+                wakeLock = await navigator.wakeLock.request('screen');
                 document.addEventListener('visibilitychange', async () => {
-                    if (document.visibilityState === 'visible' && wakeLockObj === null) {
-                        wakeLockObj = await navigator.wakeLock.request('screen');
+                    if (document.visibilityState === 'visible' && wakeLock === null) {
+                        wakeLock = await navigator.wakeLock.request('screen');
                     }
                 });
-                statusDiv.innerText = "✅ Tela sempre ligada ativada";
-            } catch (err) {
-                console.warn("Wake Lock não suportado/permitido:", err);
-            }
+            } catch(e) {}
         }
 
-        // 3. Remover o botão de ativação (overlay)
-        activatorDiv.style.display = 'none';
+        // 3. Esconder o botão
+        btn.classList.add('hidden');
 
-        // 4. Iniciar a reprodução dos vídeos
-        playCurrentVideo();
+        // 4. Iniciar os vídeos
+        playVideo();
     }
 
-    // ========== EVENTOS DO BOTÃO ==========
-    const fullscreenButton = document.getElementById('fullscreenBtn');
-    fullscreenButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        activateFullscreenAndStart();
+    // Evento de clique no botão
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        enableFullscreenAndStart();
     });
-
-    // Também permite clicar no fundo escuro (fora do botão)
-    activatorDiv.addEventListener('click', (e) => {
-        if (e.target === activatorDiv) activateFullscreenAndStart();
-    });
-
-    // Mensagem inicial
-    statusDiv.innerText = "📱 Toque no botão laranja para tela cheia e anúncios";
 </script>
 </body>
 </html>

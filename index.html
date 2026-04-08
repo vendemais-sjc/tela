@@ -32,7 +32,6 @@
             height: 100%;
             object-fit: contain;
         }
-        /* Botão igual ao do menu do Cazé Playlist (mas estilizado como botão) */
         .fullscreen-btn {
             position: fixed;
             bottom: 20px;
@@ -71,6 +70,10 @@
             pointer-events: none;
             z-index: 10;
         }
+        /* Esconde o botão por padrão no mobile */
+        .fullscreen-btn.hide {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -80,7 +83,7 @@
     <div class="fullscreen-btn" id="fullscreenBtn">
         🔲
     </div>
-    <div class="status" id="statusMsg">📺 Toque no botão para tela cheia</div>
+    <div class="status" id="statusMsg">📺 Entrando em tela cheia...</div>
 
     <script>
         // ========== LISTA DE VÍDEOS (SUBSTITUA PELOS SEUS) ==========
@@ -90,14 +93,45 @@
             "Pla.mp4"
         ];
 
-        // PARA TESTAR COM VÍDEO ONLINE (FUNCIONA EM QUALQUER LUGAR) - descomente a linha abaixo e comente a de cima
-        // const videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"];
-
         let current = 0;
         let wakeLock = null;
+        let fullscreenAttempts = 0;
         const video = document.getElementById('adVideo');
         const btn = document.getElementById('fullscreenBtn');
         const statusDiv = document.getElementById('statusMsg');
+
+        // Função para ativar tela cheia
+        function activateFullscreen() {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen();
+            } else if (docEl.webkitRequestFullscreen) { // Safari
+                docEl.webkitRequestFullscreen();
+            } else if (docEl.msRequestFullscreen) { // IE/Edge
+                docEl.msRequestFullscreen();
+            }
+        }
+
+        // Função para ativar wake lock
+        async function activateWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    statusDiv.innerText = "✅ Tela cheia ativada | Wake Lock ativo";
+                    
+                    document.addEventListener('visibilitychange', async () => {
+                        if (document.visibilityState === 'visible' && wakeLock === null) {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                } catch (e) {
+                    console.log("Wake Lock não suportado:", e);
+                    statusDiv.innerText = "✅ Tela cheia ativada";
+                }
+            } else {
+                statusDiv.innerText = "✅ Tela cheia ativada";
+            }
+        }
 
         // Função para tocar o vídeo atual
         function playVideo() {
@@ -107,11 +141,13 @@
             video.play().then(() => {
                 statusDiv.innerText = `▶️ Anúncio ${current+1}/${videos.length}`;
             }).catch(e => {
-                statusDiv.innerText = `⚠️ Erro no vídeo ${current+1}, pulando...`;
+                statusDiv.innerText = `⚠️ Erro no vídeo ${current+1}, tentando novamente...`;
                 setTimeout(() => {
-                    current = (current + 1) % videos.length;
-                    playVideo();
-                }, 2000);
+                    video.play().catch(() => {
+                        current = (current + 1) % videos.length;
+                        playVideo();
+                    });
+                }, 1000);
             });
         }
 
@@ -121,7 +157,7 @@
             playVideo();
         });
 
-        // Se houver erro de carregamento (arquivo não encontrado ou codec inválido)
+        // Se houver erro de carregamento
         video.addEventListener('error', () => {
             statusDiv.innerText = "❌ Vídeo com erro, pulando...";
             setTimeout(() => {
@@ -130,46 +166,120 @@
             }, 1500);
         });
 
-        // ========== TELA CHEIA (EXATAMENTE COMO NO CAZÉ PLAYLIST) ==========
+        // Evento de clique no botão (fallback)
         btn.addEventListener('click', () => {
-            // Tenta entrar em tela cheia usando o método padrão
-            const docEl = document.documentElement;
-            if (docEl.requestFullscreen) {
-                docEl.requestFullscreen();
-            } else if (docEl.webkitRequestFullscreen) { // Safari
-                docEl.webkitRequestFullscreen();
-            }
-            // Esconde o botão
-            btn.style.display = 'none';
-            // Ativa wake lock
-            if ('wakeLock' in navigator) {
-                navigator.wakeLock.request('screen').then(lock => {
-                    wakeLock = lock;
-                    document.addEventListener('visibilitychange', () => {
-                        if (document.visibilityState === 'visible' && wakeLock === null) {
-                            navigator.wakeLock.request('screen').then(l => wakeLock = l);
-                        }
-                    });
-                }).catch(e => console.log("Wake Lock não suportado"));
-            }
-            // Se o vídeo ainda não começou, inicia
+            activateFullscreen();
+            btn.classList.add('hide');
+            activateWakeLock();
             if (video.paused) playVideo();
-            statusDiv.innerText = "✅ Tela cheia ativada";
         });
 
-        // Se sair da tela cheia, mostra o botão novamente
+        // Monitora quando sair da tela cheia
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                btn.style.display = 'flex';
+                btn.classList.remove('hide');
                 statusDiv.innerText = "🔓 Toque no botão para reativar tela cheia";
             }
         });
 
-        // Pré-carrega o primeiro vídeo (mas não toca até o botão)
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (!document.webkitFullscreenElement) {
+                btn.classList.remove('hide');
+                statusDiv.innerText = "🔓 Toque no botão para reativar tela cheia";
+            }
+        });
+
+        // ========== AUTOMATISMO PARA TELA CHEIA NO CARREGAMENTO ==========
+        
+        // Tenta ativar tela cheia automaticamente
+        async function autoFullscreen() {
+            // Pequeno delay para garantir que o DOM está pronto
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            try {
+                activateFullscreen();
+                fullscreenAttempts++;
+                
+                // Aguarda um pouco para ver se entrou em tela cheia
+                setTimeout(async () => {
+                    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+                    
+                    if (!isFullscreen && fullscreenAttempts < 3) {
+                        // Se não entrou em tela cheia, tenta novamente
+                        statusDiv.innerText = `🔄 Tentando tela cheia (${fullscreenAttempts}/3)...`;
+                        autoFullscreen();
+                    } else if (isFullscreen) {
+                        // Conseguiu entrar em tela cheia
+                        btn.classList.add('hide');
+                        await activateWakeLock();
+                        
+                        // Força o vídeo a tocar com áudio desbloqueado em alguns navegadores
+                        video.muted = false;
+                        video.play().catch(() => {
+                            // Se não conseguir com áudio, tenta sem áudio
+                            video.muted = true;
+                            video.play();
+                        });
+                        
+                        playVideo();
+                    } else if (fullscreenAttempts >= 3) {
+                        // Se falhou após 3 tentativas, mostra o botão
+                        statusDiv.innerText = "📱 Toque no botão para tela cheia";
+                        btn.classList.remove('hide');
+                        playVideo();
+                    }
+                }, 1000);
+            } catch (e) {
+                console.log("Erro ao entrar em tela cheia:", e);
+                if (fullscreenAttempts < 3) {
+                    autoFullscreen();
+                } else {
+                    statusDiv.innerText = "📱 Toque no botão para tela cheia";
+                    btn.classList.remove('hide');
+                    playVideo();
+                }
+            }
+        }
+
+        // Detecta se é dispositivo móvel
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Inicia o processo
+        if (isMobile()) {
+            // No mobile, tenta ativar tela cheia automaticamente
+            // Nota: Muitos navegadores mobile exigem interação do usuário para fullscreen
+            // Mas vamos tentar de qualquer forma
+            autoFullscreen();
+            
+            // Fallback: Se o usuário tocar em qualquer lugar, ativa tela cheia
+            document.body.addEventListener('touchstart', function onFirstTouch() {
+                if (!(document.fullscreenElement || document.webkitFullscreenElement)) {
+                    activateFullscreen();
+                    btn.classList.add('hide');
+                    activateWakeLock();
+                    if (video.paused) playVideo();
+                }
+                document.body.removeEventListener('touchstart', onFirstTouch);
+            }, { once: true });
+        } else {
+            // Desktop: tenta ativar automaticamente
+            autoFullscreen();
+        }
+
+        // Pré-carrega o primeiro vídeo
         if (videos.length) {
             video.src = videos[0];
             video.load();
         }
+        
+        // Força o vídeo a tocar mesmo em background em alguns navegadores
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && video.paused && videos.length) {
+                video.play().catch(e => console.log("Auto-play bloqueado"));
+            }
+        });
     </script>
 </body>
 </html>
